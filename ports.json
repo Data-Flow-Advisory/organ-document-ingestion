@@ -1,0 +1,55 @@
+{
+  "organ": "organ-document-ingestion",
+  "source_module": "discovery-engine/app/services/document_ingestion.py",
+  "contract": "decide(state, context) -> {output, rationale, self_metric}",
+  "ports": {
+    "input": {
+      "state": {
+        "content_type": "str?",
+        "original_filename": "str?",
+        "status": "str? (uploaded|extracting|classified|facts_extracted|failed)",
+        "candidate_classification": "str?",
+        "extracted_text_length": "int?",
+        "project_id": "int|null",
+        "projects": "list[{id, slug}]?"
+      },
+      "context": {
+        "allowed_classifications": "list[str]?",
+        "truncate_limit": "int?"
+      }
+    },
+    "output": {
+      "next_status": "str",
+      "should_skip": "bool",
+      "overall": "str (ingest|noop)",
+      "extraction_method": "str (pdf_extract|docx|ocr|plain)",
+      "classification": "str",
+      "target_project_id": "int|null",
+      "target_project_reason": "str",
+      "truncate": "bool",
+      "truncated_length": "int",
+      "actions": "list[{step, ...}]"
+    },
+    "self_metric": {
+      "confidence": "float [0.1, 1.0]"
+    }
+  },
+  "_checked": {
+    "corpus_checked": "2026-06-11",
+    "oss_checked": "2026-06-11"
+  },
+  "_audit": {
+    "item": 19946,
+    "date": "2026-06-11",
+    "corpus": {
+      "verdict": "watch",
+      "ref": "Data-Flow-Advisory/organ-document-service",
+      "rationale": "Not an exact duplicate. organ-document-service overlaps on the document-classification decision but derives from a DISTINCT source service (app/services/document_service.py, the Stream 09 `Document`/documents-table API+worker pipeline), whereas this organ derives from app/services/document_ingestion.py (the `UploadedDocument`/uploaded_documents discovery-upload pipeline). The unique routing here (extraction-method dispatch, target-project selection, idempotency on facts_extracted, 50k truncation cap, next_status state machine) has no counterpart in organ-document-service, which instead owns filename-keyword classification, fact-extraction theme hints, and extraction-readiness. Overlap flagged for operator dedup awareness; the two map to two genuinely separate Flask pipelines so neither is redundant today."
+    },
+    "oss": {
+      "verdict": "keep",
+      "ref": null,
+      "rationale": "No permissive OSS library supersedes this organ. The 2026 OSS document market (Tesseract, PaddleOCR, dots.ocr, unstructured.io, Apache Tika, Docling, MistralOCR, olmOCR) operates at the IMPURE I/O layer: actual text extraction and ML-based classification. This organ is the PURE routing/decision layer extracted FROM the Flask service precisely so the impure parts stay there. Its value is bespoke business logic bound to discovery-engine's UploadedDocument state machine, tenant-project routing, allowed-classification normalisation, idempotency, and truncation cap, none of which an OSS extractor provides. The impure extraction the Flask service performs (pypdf / python-docx / OCR) is already the correct home for OSS adoption; the decision organ stays."
+    }
+  }
+}
