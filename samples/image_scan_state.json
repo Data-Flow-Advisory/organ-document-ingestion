@@ -1,0 +1,11 @@
+{
+  "content_type": "image/png",
+  "original_filename": "legacy_dashboard_screenshot.png",
+  "status": "uploaded",
+  "candidate_classification": null,
+  "extracted_text_length": 72000,
+  "project_id": null,
+  "projects": [
+    {"id": 1, "slug": "default"}
+  ]
+}

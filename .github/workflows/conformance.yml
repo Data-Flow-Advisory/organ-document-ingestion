@@ -1,0 +1,101 @@
+name: Conformance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Check decide() signature
+        run: |
+          python -c "
+          from organ import decide
+          import inspect
+          params = list(inspect.signature(decide).parameters.keys())
+          assert params == ['state', 'context'], f'Expected (state, context), got {params}'
+          print('decide(state, context) signature correct')
+          "
+
+      - name: Test empty state (fail-safe)
+        run: |
+          python -c "
+          from organ import decide
+          result = decide({}, {})
+          assert 'output' in result
+          assert 'rationale' in result
+          assert 'self_metric' in result
+          assert 'confidence' in result['self_metric']
+          conf = result['self_metric']['confidence']
+          assert 0.0 <= conf <= 1.0, f'Confidence {conf} out of range'
+          assert result['output']['next_status'] == 'noop'
+          print(f'Empty state handled (confidence: {conf})')
+          "
+
+      - name: Test sample states
+        run: |
+          python -c "
+          from organ import decide
+          import json
+          from pathlib import Path
+          for name in ['pdf_spec_state.json', 'image_scan_state.json', 'already_ingested_state.json']:
+              p = Path('samples') / name
+              if not p.exists():
+                  continue
+              state = json.load(open(p))
+              result = decide(state, {})
+              assert isinstance(result['output'], dict)
+              assert isinstance(result['output']['actions'], list)
+              assert 0.0 <= result['self_metric']['confidence'] <= 1.0
+              print(f'{name}: next_status={result[\"output\"][\"next_status\"]} conf={result[\"self_metric\"][\"confidence\"]}')
+          "
+
+      - name: Run unit tests
+        run: python -m pytest test_organ.py -v --tb=short
+
+      - name: Check determinism
+        run: |
+          python -c "
+          from organ import decide
+          state = {'content_type': 'application/pdf', 'original_filename': 'a.pdf',
+                   'candidate_classification': 'spec_doc',
+                   'projects': [{'id': 1, 'slug': 'default'}, {'id': 2, 'slug': 'domain'}]}
+          r1 = decide(state, {})
+          r2 = decide(state, {})
+          assert r1 == r2, 'Organ not deterministic'
+          print('Organ is deterministic (same input -> same output)')
+          "
+
+      - name: Check no external dependencies
+        run: |
+          python -c "
+          import ast
+          tree = ast.parse(open('organ.py').read())
+          imports = []
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Import):
+                  imports += [a.name for a in node.names]
+              elif isinstance(node, ast.ImportFrom):
+                  imports.append(node.module)
+          stdlib_allowed = {'typing'}
+          external = [i for i in imports if i and i not in stdlib_allowed]
+          assert not external, f'Non-stdlib imports found: {external}'
+          print(f'Pure organ: stdlib-only (imports: {imports})')
+          "

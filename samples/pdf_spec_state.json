@@ -1,0 +1,12 @@
+{
+  "content_type": "application/pdf",
+  "original_filename": "YPZ_section13_spec.pdf",
+  "status": "uploaded",
+  "candidate_classification": "spec_doc",
+  "extracted_text_length": 18400,
+  "project_id": null,
+  "projects": [
+    {"id": 1, "slug": "default"},
+    {"id": 2, "slug": "property-discovery"}
+  ]
+}

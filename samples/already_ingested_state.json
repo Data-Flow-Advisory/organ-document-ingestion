@@ -1,0 +1,12 @@
+{
+  "content_type": "application/pdf",
+  "original_filename": "rent_statement_april.pdf",
+  "status": "facts_extracted",
+  "candidate_classification": "statement",
+  "extracted_text_length": 4200,
+  "project_id": 2,
+  "projects": [
+    {"id": 1, "slug": "default"},
+    {"id": 2, "slug": "property-discovery"}
+  ]
+}
